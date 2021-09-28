@@ -185,6 +185,7 @@ function mvs() {
     # OpenMVS
     densify
     reconstruct_mesh
+    refine_mesh
     reconstruct_mesh_again
     texture_mesh
 
