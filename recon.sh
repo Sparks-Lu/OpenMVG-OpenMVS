@@ -1,45 +1,5 @@
 #!/usr/bin/env bash
 
-set -e
-
-DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-
-DIR_SFM=$DIR/openMVG_Build/software/SfM/
-DIR_SFM_BIN=$DIR/openMVG_Build/Linux-x86_64-Release/
-DIR_MVG_SRC=$DIR/openMVG/src/openMVG/
-
-if [ $# -lt 1 ]; then
-    echo 'Usage: ./recon.sh {project_folder}'
-    exit
-fi
-
-interactive=0
-input_dir=""
-
-if [ $# -gt 1 ] && [ $1 == "-i" ]; then
-    interactive=1
-    input_dir=$2
-else
-    input_dir=$1
-fi
-image_dir=$input_dir/images
-mvg_dir=$input_dir/openMVG
-mvs_dir=$input_dir/openMVS
-if [ ! -d $mvg_dir ]; then
-    mkdir $mvg_dir
-fi
-echo "Images dir: $image_dir"
-echo "MVG project dir: $mvg_dir"
-echo "MVS project dir: $mvs_dir"
-
-log_file=$input_dir/recon-`date '+%m%d%H%M%S'`.log
-touch $log_file
-echo 'Log file: '$log_file
-
-#echo 'Make sure the images are properly cropped before reconstruction'
-#echo 'Press any key to continue'
-#read -n 1 key
-
 function extract_exif()
 {
     # image listing
@@ -68,7 +28,7 @@ function compute_features()
         -m SIFT \
         -i $mvg_dir/matches/sfm_data.json \
         -o $mvg_dir/matches \
-        -n 4
+        -n 8
         >> $log_file
     local seconds_end=`date '+%s'`
     local seconds_used=$((seconds_end-seconds_start))
@@ -87,7 +47,7 @@ function compute_matches()
     $DIR_SFM_BIN/openMVG_main_ComputeMatches \
         -r .8 \
         -i $mvg_dir/matches/sfm_data.json \
-        -o $mvg_dir/matches \
+        -o $mvg_dir/matches/matches.putative.bin \
         >> $log_file
     local seconds_end=`date '+%s'`
     local seconds_used=$((seconds_end-seconds_start))
@@ -192,13 +152,15 @@ function densify() {
     #DensifyPointCloud -v 5 --number-views 0 --estimate-normals 1 scene.mvs
     # Set resolution-level to scale down images 5 times to avoid out of memory
     # resolution-level: scale down before densify, default 0
+    # 8G RAM supports max resolution level 3
     #   resolution-level=0: about 70min for coin_0804
+    # --resolution-level 5 \
     DensifyPointCloud \
-        -w $mvs_dir \
+        --resolution-level 5 \
         --number-views 0 \
         --estimate-normals 1 \
-        --resolution-level 5 \
         $mvs_dir/scene.mvs \
+        -w $mvs_dir \
         >> $log_file
     # DensifyPointCloud -v 5 --number-views 0 --estimate-normals 1 $mvs_dir/scene.mvs &>> $log_file
     local seconds_end=`date '+%s'`
@@ -215,6 +177,7 @@ function densify() {
 }
 
 reconstruct_mesh() {
+    # Memory-heavy
     local seconds_start=`date '+%s'`
     # TODO call Poisson surface restruction here. But result is not as good as the one in MeshLab.
     echo | tee -a $log_file
@@ -223,10 +186,11 @@ reconstruct_mesh() {
     # TODO invalid mesh for pumpkin
     # ReconstructMesh --mesh-file scene_dense_cleaned_mesh.ply scene_dense.mvs
     ReconstructMesh \
-        -w $mvs_dir \
         -v 5 \
         --remove-spurious 50 \
+        --max-threads 4 \
         $mvs_dir/scene_dense.mvs \
+        -w $mvs_dir \
         >> $log_file
     local seconds_end=`date '+%s'`
     local seconds_used=$((seconds_end-seconds_start))
@@ -234,14 +198,17 @@ reconstruct_mesh() {
 }
 
 function refine_mesh() {
+    # CPU-heavy
     local seconds_start=`date '+%s'`
     echo | tee -a $log_file
     echo "[`date '+%T'`] Refine mesh ..." | tee -a $log_file
+    # 8G RAM supports max resolution level 3
+    # --resolution-level 5 \
     RefineMesh \
-        -w $mvs_dir \
-        --resolution-level 5 \
+        --resolution-level 3 \
         --decimate 0.7 \
         $mvs_dir/scene_dense_mesh.mvs \
+        -w $mvs_dir \
         >> $log_file
     local seconds_end=`date '+%s'`
     local seconds_used=$((seconds_end-seconds_start))
@@ -257,7 +224,6 @@ function reconstruct_mesh_again() {
     echo "[`date '+%T'`] Reconstruct mesh again ..." | tee -a $log_file
     local seconds_start=`date '+%s'`
     ReconstructMesh \
-        -w $mvs_dir \
         -v 5 \
         --decimate 0.5 \
         --remove-spurious 0 \
@@ -265,6 +231,7 @@ function reconstruct_mesh_again() {
         --smooth 0 \
         --mesh-file $mvs_dir/scene_dense_mesh_refine_fixed.ply \
         $mvs_dir/scene_dense_mesh_refine.mvs \
+        -w $mvs_dir \
         >> $log_file
     local seconds_end=`date '+%s'`
     local seconds_used=$((seconds_end-seconds_start))
@@ -272,23 +239,29 @@ function reconstruct_mesh_again() {
 }
 
 function texture_mesh() {
+    # CPU-heavy
     echo | tee -a $log_file
     echo "[`date '+%T'`] Texture mesh ..." | tee -a $log_file
     local seconds_start=`date '+%s'`
+    # deciding where to place a new patch, 0-best fit, 3-good speed, 100-best speed
+    # --patch-packing-heuristic 0 \
+    # --resolution-level 5 \
+    # 8G RAM supports max resolution level 3
+    model_file="$mvs_dir/scene.ply"
     TextureMesh \
-        -w $mvs_dir \
-        --resolution-level 5 \
+        --resolution-level 3 \
         --cost-smoothness-ratio 1 \
-        --patch-packing-heuristic 0 \
+        --patch-packing-heuristic 3 \
         --empty-color 985864 \
-        --export-type obj \
-        -o $mvs_dir/scene.obj \
+        --export-type ply \
+        -o $model_file \
         $mvs_dir/scene_dense_mesh_refine_mesh.mvs \
+        -w $mvs_dir \
         >> $log_file
     local seconds_end=`date '+%s'`
     local seconds_used=$((seconds_end-seconds_start))
     echo | tee -a $log_file
-    echo "[`date '+%T'`] Generated as $mvs_dir/scene.obj in $((seconds_used))s" | tee -a $log_file
+    echo "[`date '+%T'`] Generated as $model_file in $((seconds_used))s" | tee -a $log_file
 }
 
 function mvs() {
@@ -296,7 +269,7 @@ function mvs() {
     local seconds_start=`date '+%s'`
 
     # time-consuming
-    densify
+    # densify
     reconstruct_mesh
     refine_mesh
     reconstruct_mesh_again
@@ -308,5 +281,49 @@ function mvs() {
     paplay /usr/share/sounds/ubuntu/stereo/system-ready.ogg
 }
 
-sfm
-mvs
+
+function recon() {
+    set -e
+
+    DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+
+    DIR_SFM=$DIR/openMVG_Build/software/SfM/
+    DIR_SFM_BIN=$DIR/openMVG_Build/Linux-x86_64-Release/
+    DIR_MVG_SRC=$DIR/openMVG/src/openMVG/
+
+    if [ $# -lt 1 ]; then
+        echo 'Usage: ./recon.sh {project_folder}'
+        exit
+    fi
+
+    interactive=0
+    input_dir=""
+
+    if [ $# -gt 1 ] && [ $1 == "-i" ]; then
+        interactive=1
+        input_dir=$2
+    else
+        input_dir=$1
+    fi
+    image_dir=$input_dir/images
+    mvg_dir=$input_dir/openMVG
+    mvs_dir=$input_dir/openMVS
+    if [ ! -d $mvg_dir ]; then
+        mkdir $mvg_dir
+    fi
+    echo "Images dir: $image_dir"
+    echo "MVG project dir: $mvg_dir"
+    echo "MVS project dir: $mvs_dir"
+
+    log_file=$input_dir/recon-`date '+%m%d%H%M%S'`.log
+    touch $log_file
+    echo 'Log file: '$log_file
+
+    #echo 'Make sure the images are properly cropped before reconstruction'
+    #echo 'Press any key to continue'
+    #read -n 1 key
+    # sfm
+    mvs
+}
+
+recon $@
