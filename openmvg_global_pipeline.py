@@ -21,7 +21,7 @@
 OPENMVG_SFM_BIN = './openMVG_Build/Linux-x86_64-Release'
 
 # Indicate the openMVG camera sensor width directory
-CAMERA_SENSOR_WIDTH_DIRECTORY = './openMVG/exif/sensor_width_database'
+CAMERA_SENSOR_WIDTH_DIRECTORY = './openMVG/src/openMVG/exif/sensor_width_database'
 
 import os
 import subprocess
@@ -60,7 +60,7 @@ class GlobalReconstructor(object):
                     ])
         pIntrisics.wait()
         time_used = time.time() - time_start
-        print('Finished in {.0f}s'.format(time_used))
+        print('Finished in {:.0f}s'.format(time_used))
 
     def compute_features(self):
         time_start = time.time()
@@ -69,11 +69,12 @@ class GlobalReconstructor(object):
                 [os.path.join(OPENMVG_SFM_BIN, 'openMVG_main_ComputeFeatures'),
                     '-i', self.matches_dir + '/sfm_data.json',
                     '-o', self.matches_dir,
-                    '-m', 'SIFT'
+                    '-m', 'SIFT',
+                    '-n', '4'
                     ])
         pFeatures.wait()
         time_used = time.time() - time_start
-        print('Finished in {.0f}s'.format(time_used))
+        print('Finished in {:.0f}s'.format(time_used))
 
 
     def compute_pairs(self):
@@ -82,11 +83,11 @@ class GlobalReconstructor(object):
         pPairs = subprocess.Popen(
                 [os.path.join(OPENMVG_SFM_BIN, 'openMVG_main_PairGenerator'),
                     '-i', self.matches_dir + '/sfm_data.json',
-                    '-o' , self.matches_dir + '/pairs.bin' 
+                    '-o' , self.matches_dir + '/pairs.bin',
                     ])
         pPairs.wait()
         time_used = time.time() - time_start
-        print('Finished in {.0f}s'.format(time_used))
+        print('Finished in {:.0f}s'.format(time_used))
 
 
     def compute_matches(self):
@@ -96,11 +97,11 @@ class GlobalReconstructor(object):
                 [os.path.join(OPENMVG_SFM_BIN, 'openMVG_main_ComputeMatches'),
                    '-i', self.matches_dir + '/sfm_data.json',
                    '-p', self.matches_dir + '/pairs.bin',
-                   '-o', self.matches_dir + '/matches.putative.bin'
+                   '-o', self.matches_dir + '/matches.putative.bin',
                    ])
         pMatches.wait()
         time_used = time.time() - time_start
-        print('Finished in {.0f}s'.format(time_used))
+        print('Finished in {:.0f}s'.format(time_used))
 
 
     def filter_matches(self):
@@ -112,11 +113,11 @@ class GlobalReconstructor(object):
                     '-m', self.matches_dir + '/matches.putative.bin' ,
                     '-g',
                     'e',
-                    '-o', self.matches_dir + '/matches.e.bin'
+                    '-o', self.matches_dir + '/matches.e.bin',
                     ])
         pFiltering.wait()
         time_used = time.time() - time_start
-        print('Finished in {.0f}s'.format(time_used))
+        print('Finished in {:.0f}s'.format(time_used))
 
 
     def recon(self):
@@ -131,7 +132,7 @@ class GlobalReconstructor(object):
                     ])
         pRecons.wait()
         time_used = time.time() - time_start
-        print('Finished in {.0f}s'.format(time_used))
+        print('Finished in {:.0f}s'.format(time_used))
 
 
     def colorize(self):
@@ -140,11 +141,11 @@ class GlobalReconstructor(object):
         pRecons = subprocess.Popen(
                 [os.path.join(OPENMVG_SFM_BIN, 'openMVG_main_ComputeSfM_DataColor'),
                     '-i', self.reconstruction_dir + '/sfm_data.bin',
-                    '-o', os.path.join(reconstruction_dir,'colorized.ply')
+                    '-o', os.path.join(self.reconstruction_dir,'colorized.ply')
                     ])
         pRecons.wait()
         time_used = time.time() - time_start
-        print('Finished in {.0f}s'.format(time_used))
+        print('Finished in {:.0f}s'.format(time_used))
 
 
     def export_to_openmvs(self):
@@ -158,7 +159,7 @@ class GlobalReconstructor(object):
                     ])
         pRecons.wait()
         time_used = time.time() - time_start
-        print('Finished in {.0f}s'.format(time_used))
+        print('Finished in {:.0f}s'.format(time_used))
 
 
 def main():
