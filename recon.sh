@@ -125,7 +125,7 @@ function sfm_known_poses()
     echo "Finished in $((seconds_used))s." | tee -a $log_file
 }
 
-function sfm() {
+function sfm_v1() {
     local seconds_start=`date '+%s'`
     echo | tee -a $log_file
     # python $DIR_SFM/SfM_SequentialPipeline.py $image_dir $mvg_dir &>> $log_file
@@ -142,6 +142,7 @@ function sfm() {
     local seconds_used=$((seconds_end-seconds_start))
     echo "Seconds used in sfm total: $((seconds_used))s"
 }
+
 
 function densify() {
     echo | tee -a $log_file
@@ -269,7 +270,7 @@ function mvs() {
     local seconds_start=`date '+%s'`
 
     # time-consuming
-    # densify
+    densify
     reconstruct_mesh
     refine_mesh
     reconstruct_mesh_again
@@ -323,6 +324,7 @@ function recon() {
     #echo 'Press any key to continue'
     #read -n 1 key
     # sfm
+    python ./openmvg_global_pipeline.py $input_dir/images $mvg_dir
     mvs
 }
 
