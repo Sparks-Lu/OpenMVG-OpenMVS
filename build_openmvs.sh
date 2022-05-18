@@ -41,10 +41,10 @@ sudo apt-get -y install freeglut3-dev libglew-dev libglfw3-dev
 
 #OpenMVS
 echo 'Build OpenMVS from source and install...'
-git clone https://github.com/cdcseacave/openMVS.git openMVS
 cd $workdir
+git clone https://github.com/cdcseacave/openMVS.git openMVS
 mkdir openMVS_build
-cd openMVS_build && cmake . ../openMVS -DCMAKE_BUILD_TYPE=Release -DVCG_ROOT="$main_path/vcglib" && make -j && sudo make install
+cd openMVS_build && cmake . ../openMVS -DCMAKE_BUILD_TYPE=Release -DVCG_ROOT="$main_path/vcglib" && make -j4 && sudo make install
 
 #If you want to use OpenMVS as shared library, add to the CMake command:
 # -DBUILD_SHARED_LIBS=ON
