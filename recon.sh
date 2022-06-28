@@ -47,7 +47,7 @@ function compute_matches()
     $DIR_SFM_BIN/openMVG_main_ComputeMatches \
         -r .8 \
         -i $mvg_dir/matches/sfm_data.json \
-        -o $mvg_dir/matches \
+        -o $mvg_dir/matches/matches.putative.bin \
         >> $log_file
     local seconds_end=`date '+%s'`
     local seconds_used=$((seconds_end-seconds_start))
@@ -125,7 +125,7 @@ function sfm_known_poses()
     echo "Finished in $((seconds_used))s." | tee -a $log_file
 }
 
-function sfm() {
+function sfm_v1() {
     local seconds_start=`date '+%s'`
     echo | tee -a $log_file
     # python $DIR_SFM/SfM_SequentialPipeline.py $image_dir $mvg_dir &>> $log_file
@@ -142,6 +142,7 @@ function sfm() {
     local seconds_used=$((seconds_end-seconds_start))
     echo "Seconds used in sfm total: $((seconds_used))s"
 }
+
 
 function densify() {
     echo | tee -a $log_file
@@ -161,6 +162,7 @@ function densify() {
         --number-views 0 \
         --estimate-normals 1 \
         $mvs_dir/scene.mvs \
+        -w $mvs_dir \
         >> $log_file
     # DensifyPointCloud -v 5 --number-views 0 --estimate-normals 1 $mvs_dir/scene.mvs &>> $log_file
     local seconds_end=`date '+%s'`
@@ -186,11 +188,11 @@ reconstruct_mesh() {
     # TODO invalid mesh for pumpkin
     # ReconstructMesh --mesh-file scene_dense_cleaned_mesh.ply scene_dense.mvs
     ReconstructMesh \
-        -w $mvs_dir \
         -v 5 \
         --remove-spurious 50 \
-        --max-threads 2 \
+        --max-threads 4 \
         $mvs_dir/scene_dense.mvs \
+        -w $mvs_dir \
         >> $log_file
     local seconds_end=`date '+%s'`
     local seconds_used=$((seconds_end-seconds_start))
@@ -209,6 +211,7 @@ function refine_mesh() {
         --resolution-level 3 \
         --decimate 0.7 \
         $mvs_dir/scene_dense_mesh.mvs \
+        -w $mvs_dir \
         >> $log_file
     local seconds_end=`date '+%s'`
     local seconds_used=$((seconds_end-seconds_start))
@@ -224,7 +227,6 @@ function reconstruct_mesh_again() {
     echo "[`date '+%T'`] Reconstruct mesh again ..." | tee -a $log_file
     local seconds_start=`date '+%s'`
     ReconstructMesh \
-        -w $mvs_dir \
         -v 5 \
         --decimate 0.5 \
         --remove-spurious 0 \
@@ -232,6 +234,7 @@ function reconstruct_mesh_again() {
         --smooth 0 \
         --mesh-file $mvs_dir/scene_dense_mesh_refine_fixed.ply \
         $mvs_dir/scene_dense_mesh_refine.mvs \
+        -w $mvs_dir \
         >> $log_file
     local seconds_end=`date '+%s'`
     local seconds_used=$((seconds_end-seconds_start))
@@ -257,6 +260,7 @@ function texture_mesh() {
         --export-type ply \
         -o $model_file \
         $mvs_dir/scene_dense_mesh_refine_mesh.mvs \
+        -w $mvs_dir \
         >> $log_file
     local seconds_end=`date '+%s'`
     local seconds_used=$((seconds_end-seconds_start))
