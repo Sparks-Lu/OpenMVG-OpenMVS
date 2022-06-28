@@ -28,7 +28,7 @@ function compute_features()
         -m SIFT \
         -i $mvg_dir/matches/sfm_data.json \
         -o $mvg_dir/matches \
-        -n 4
+        -n 8
         >> $log_file
     local seconds_end=`date '+%s'`
     local seconds_used=$((seconds_end-seconds_start))
@@ -157,7 +157,7 @@ function densify() {
     # --resolution-level 5 \
     DensifyPointCloud \
         -w $mvs_dir \
-        --resolution-level 3 \
+        --resolution-level 6 \
         --number-views 0 \
         --estimate-normals 1 \
         $mvs_dir/scene.mvs \
@@ -247,14 +247,14 @@ function texture_mesh() {
     # --patch-packing-heuristic 0 \
     # --resolution-level 5 \
     # 8G RAM supports max resolution level 3
-    model_file="$mvs_dir/scene.glb"
+    model_file="$mvs_dir/scene.ply"
     TextureMesh \
         -w $mvs_dir \
         --resolution-level 3 \
         --cost-smoothness-ratio 1 \
         --patch-packing-heuristic 3 \
         --empty-color 985864 \
-        --export-type glb \
+        --export-type ply \
         -o $model_file \
         $mvs_dir/scene_dense_mesh_refine_mesh.mvs \
         >> $log_file
@@ -322,7 +322,8 @@ function recon() {
     #echo 'Make sure the images are properly cropped before reconstruction'
     #echo 'Press any key to continue'
     #read -n 1 key
-    sfm
+    python ./openmvg_global_pipeline.py $input_dir/images $mvg_dir | tee -a $log_file
+    # python ./openmvg_incrementalv2_pipeline.py $input_dir/images $mvg_dir | tee -a $log_file
     mvs
 }
 
