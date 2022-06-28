@@ -156,13 +156,12 @@ function densify() {
     # 8G RAM supports max resolution level 3
     #   resolution-level=0: about 70min for coin_0804
     # --resolution-level 5 \
+    cd $mvs_dir
     DensifyPointCloud \
-        -w $mvs_dir \
-        --resolution-level 6 \
+        --resolution-level 5 \
         --number-views 0 \
         --estimate-normals 1 \
-        $mvs_dir/scene.mvs \
-        -w $mvs_dir \
+        scene.mvs \
         >> $log_file
     # DensifyPointCloud -v 5 --number-views 0 --estimate-normals 1 $mvs_dir/scene.mvs &>> $log_file
     local seconds_end=`date '+%s'`
@@ -187,12 +186,12 @@ reconstruct_mesh() {
     # Only clean mesh, skip reconstruction
     # TODO invalid mesh for pumpkin
     # ReconstructMesh --mesh-file scene_dense_cleaned_mesh.ply scene_dense.mvs
+    cd $mvs_dir
     ReconstructMesh \
         -v 5 \
         --remove-spurious 50 \
         --max-threads 4 \
-        $mvs_dir/scene_dense.mvs \
-        -w $mvs_dir \
+        scene_dense.mvs \
         >> $log_file
     local seconds_end=`date '+%s'`
     local seconds_used=$((seconds_end-seconds_start))
@@ -206,12 +205,11 @@ function refine_mesh() {
     echo "[`date '+%T'`] Refine mesh ..." | tee -a $log_file
     # 8G RAM supports max resolution level 3
     # --resolution-level 5 \
+    cd $mvs_dir
     RefineMesh \
-        -w $mvs_dir \
         --resolution-level 3 \
         --decimate 0.7 \
-        $mvs_dir/scene_dense_mesh.mvs \
-        -w $mvs_dir \
+        scene_dense_mesh.mvs \
         >> $log_file
     local seconds_end=`date '+%s'`
     local seconds_used=$((seconds_end-seconds_start))
@@ -226,15 +224,15 @@ function reconstruct_mesh_again() {
     echo | tee -a $log_file
     echo "[`date '+%T'`] Reconstruct mesh again ..." | tee -a $log_file
     local seconds_start=`date '+%s'`
+    cd $mvs_dir
     ReconstructMesh \
         -v 5 \
         --decimate 0.5 \
         --remove-spurious 0 \
         --remove-spikes 0 \
         --smooth 0 \
-        --mesh-file $mvs_dir/scene_dense_mesh_refine_fixed.ply \
-        $mvs_dir/scene_dense_mesh_refine.mvs \
-        -w $mvs_dir \
+        --mesh-file scene_dense_mesh_refine_fixed.ply \
+        scene_dense_mesh_refine.mvs \
         >> $log_file
     local seconds_end=`date '+%s'`
     local seconds_used=$((seconds_end-seconds_start))
@@ -251,16 +249,15 @@ function texture_mesh() {
     # --resolution-level 5 \
     # 8G RAM supports max resolution level 3
     model_file="$mvs_dir/scene.ply"
+    cd $mvs_dir
     TextureMesh \
-        -w $mvs_dir \
         --resolution-level 3 \
         --cost-smoothness-ratio 1 \
         --patch-packing-heuristic 3 \
         --empty-color 985864 \
         --export-type ply \
         -o $model_file \
-        $mvs_dir/scene_dense_mesh_refine_mesh.mvs \
-        -w $mvs_dir \
+        scene_dense_mesh_refine_mesh.mvs \
         >> $log_file
     local seconds_end=`date '+%s'`
     local seconds_used=$((seconds_end-seconds_start))
@@ -321,12 +318,13 @@ function recon() {
 
     log_file=$input_dir/recon-`date '+%m%d%H%M%S'`.log
     touch $log_file
+    log_file=$(realpath $log_file)
     echo 'Log file: '$log_file
 
     #echo 'Make sure the images are properly cropped before reconstruction'
     #echo 'Press any key to continue'
     #read -n 1 key
-    python ./openmvg_global_pipeline.py $input_dir/images $mvg_dir | tee -a $log_file
+    # python ./openmvg_global_pipeline.py $input_dir/images $mvg_dir | tee -a $log_file
     # python ./openmvg_incrementalv2_pipeline.py $input_dir/images $mvg_dir | tee -a $log_file
     mvs
 }
