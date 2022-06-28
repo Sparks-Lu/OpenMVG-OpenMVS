@@ -307,8 +307,11 @@ function recon() {
         input_dir=$1
     fi
     image_dir=$input_dir/images
+    image_dir=$(realpath $image_dir)
     mvg_dir=$input_dir/openMVG
+    mvg_dir=$(realpath $mvg_dir)
     mvs_dir=$input_dir/openMVS
+    mvs_dir=$(realpath $mvs_dir)
     if [ ! -d $mvg_dir ]; then
         mkdir $mvg_dir
     fi
@@ -324,7 +327,7 @@ function recon() {
     #echo 'Make sure the images are properly cropped before reconstruction'
     #echo 'Press any key to continue'
     #read -n 1 key
-    # python ./openmvg_global_pipeline.py $input_dir/images $mvg_dir | tee -a $log_file
+    python ./openmvg_global_pipeline.py $input_dir/images $mvg_dir | tee -a $log_file
     # python ./openmvg_incrementalv2_pipeline.py $input_dir/images $mvg_dir | tee -a $log_file
     mvs
 }
